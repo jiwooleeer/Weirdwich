@@ -503,16 +503,36 @@ function startSpin(){
   slotRaf=requestAnimationFrame(slotLoop);
 }
 
+let chosenItem=null; // doStop에서 저장, onStopped에서 사용
+
 function doStop(){
-  // pick random item, weighted
-  const chosen=rnd(pool);
-  // find it in pool
+  const all=[...POOL_NORMAL,...POOL_NORMAL,...POOL_WEIRD,...POOL_WEIRD,...POOL_MOOD];
+  chosenItem=rnd(all); // 이걸 떨어뜨릴 재료로 확정
+
+  // pool에서 chosenItem.id를 가진 슬롯 중 하나를 targetOff로 설정
   const wrapW=slotWrapper.offsetWidth;
-  const baseIdx=pool.findIndex(p=>p.id===chosen.id);
-  const halfLen=Math.floor(pool.length/2);
-  const idx2=(baseIdx+halfLen)%pool.length;
-  targetOff=idx2*SW - wrapW/2 + SW/2;
-  if(targetOff<0) targetOff+=halfW();
+  // 현재 위치보다 충분히 앞에 있는 같은 id 슬롯 찾기 (자연스러운 감속)
+  const hw=halfW();
+  const curNorm=((slotOffset%(hw))+(hw))%(hw);
+  const minTravel=wrapW*2; // 최소 이동 거리
+
+  // pool 전체에서 chosenItem.id에 해당하는 인덱스 모두 수집
+  const candidates=[];
+  pool.forEach((p,i)=>{ if(p.id===chosenItem.id) candidates.push(i); });
+
+  // 현재 위치 기준으로 minTravel 이상 앞에 있는 후보 선택
+  let best=null;
+  let bestDist=Infinity;
+  for(const idx of candidates){
+    const off=idx*SW - wrapW/2 + SW/2;
+    const normOff=((off%(hw))+(hw))%(hw);
+    let dist=normOff-curNorm;
+    if(dist<minTravel) dist+=hw; // wrap
+    if(dist<bestDist){ bestDist=dist; best=normOff; }
+  }
+  targetOff = best ?? (candidates[0]*SW - wrapW/2 + SW/2);
+  if(targetOff<0) targetOff+=hw;
+
   spinning=false; decelerating=true;
   spinBtn.disabled=true;
   spinBtn.textContent='선택 중...';
@@ -529,24 +549,20 @@ function getItemAtCenter(){
 }
 
 async function onStopped(){
-  const item=getItemAtCenter();
+  const item=chosenItem; // doStop에서 확정된 아이템 직접 사용
   slotWrapper.classList.add('stopped');
-  // flash center slot
-  const items=slotTrack.querySelectorAll('.slot-item');
+  // flash center slot (targetOff 기준)
   const wrapW=slotWrapper.offsetWidth;
-  const cx=slotOffset+wrapW/2;
   const hw=halfW();
-  const norm=((cx%hw)+hw)%hw;
-  const ci=Math.round(norm/SW)%pool.length;
-  const el=items[ci];
+  const norm=((targetOff%hw)+hw)%hw;
+  const ci=Math.round((norm+wrapW/2-SW/2)/SW)%pool.length;
+  const els=slotTrack.querySelectorAll('.slot-item');
+  const el=els[(ci+pool.length)%pool.length];
   if(el){el.style.transform='scale(1.18)'; setTimeout(()=>{if(el)el.style.transform='';},500);}
 
-  // show toast — name only, no tag
   showToast(item.name);
-
   await sleep(300);
-  // drop immediately
-  await dropItem(item);
+  await doDropAndProceed(item);
 }
 
 // ═══════════════════════════════════════════════
@@ -567,40 +583,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 function plateY(){return stage.offsetHeight-12;}
 
-function dropItem(item){
-  return new Promise(resolve=>{
-    const el=document.createElement('div');
-    el.className='layer-item';
-    const h=item.layerH;
-    const fy=plateY()-stackTopY-h;
-    const rx=(Math.random()-0.5)*28;
-    const rot=(Math.random()-0.5)*4;
 
-    el.innerHTML=item.svg;
-    const svgEl=el.querySelector('svg');
-    if(svgEl){svgEl.style.width='270px';svgEl.style.height=h+'px';}
-    el.style.cssText=`top:-${h+40}px;transform:translateX(calc(-50% + ${rx}px)) rotate(${rot}deg);width:270px;`;
-    layersCont.appendChild(el);
-
-    requestAnimationFrame(()=>{
-      el.style.transition='top 0.42s cubic-bezier(0.6,0,1,0.5)';
-      el.style.top=fy+'px';
-      setTimeout(()=>{
-        el.style.transition='top 0.1s ease-out'; el.style.top=(fy-18)+'px';
-        setTimeout(()=>{
-          el.style.transition='top 0.09s ease-in'; el.style.top=(fy+5)+'px';
-          setTimeout(()=>{
-            el.style.transition='top 0.07s ease-out'; el.style.top=fy+'px';
-            stackTopY+=h*0.65;
-            resolve();
-          },80);
-        },100);
-      },430);
-    });
-
-    if(item.sauce) setTimeout(()=>spawnSauce(fy,item),440);
-  });
-}
 
 // ═══════════════════════════════════════════════
 //  SAUCE FX
@@ -651,14 +634,8 @@ function renderDots(){
 }
 
 // ═══════════════════════════════════════════════
-//  MAIN FLOW — dropItem 후 next step 처리
+//  MAIN FLOW
 // ═══════════════════════════════════════════════
-async function dropItem(item){
-  // ... already defined above as a function. 
-  // We call proceed after the inner promise resolves.
-}
-
-// Override dropItem to include post-drop logic:
 async function doDropAndProceed(item){
   isDropping=true;
   spinBtn.disabled=true;
@@ -744,24 +721,6 @@ async function doDropAndProceed(item){
     spinBtn.textContent='룰렛 멈추기!';
     spinBtn.classList.add('is-spinning');
   }
-}
-
-// patch onStopped to use doDropAndProceed
-async function onStopped(){
-  const item=getItemAtCenter();
-  slotWrapper.classList.add('stopped');
-  const items=slotTrack.querySelectorAll('.slot-item');
-  const wrapW=slotWrapper.offsetWidth;
-  const cx=slotOffset+wrapW/2;
-  const hw=halfW();
-  const norm=((cx%hw)+hw)%hw;
-  const ci=Math.round(norm/SW)%pool.length;
-  const el=items[ci];
-  if(el){el.style.transform='scale(1.18)'; setTimeout(()=>{if(el)el.style.transform='';},500);}
-
-  showToast(item.name);
-  await sleep(300);
-  await doDropAndProceed(item);
 }
 
 // ═══════════════════════════════════════════════
