@@ -1,0 +1,434 @@
+@import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@300;400;700&family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&display=swap');
+
+/* ── Variables ── */
+:root {
+  --bg: #FDFAF4;
+  --bg2: #F5EFE0;
+  --ink: #1A1208;
+  --accent1: #FF4D1C;
+  --accent2: #FFD600;
+  --accent3: #00C48C;
+  --accent4: #6B4FFF;
+  --slot-h: 90px;
+  --stage-h: 340px;
+  --radius: 18px;
+  --shadow: 0 8px 32px rgba(26,18,8,0.13);
+  --font-display: 'Black Han Sans', sans-serif;
+  --font-body: 'Gaegu', cursive;
+  --font-ui: 'Noto Sans KR', sans-serif;
+}
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  font-family: var(--font-body);
+  color: var(--ink);
+  overflow-x: hidden;
+  min-height: 100dvh;
+}
+
+/* ── Noise texture overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+}
+
+/* ── App Shell ── */
+#app {
+  position: relative;
+  z-index: 1;
+  max-width: 420px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 0 16px 20px;
+}
+
+/* ── Header ── */
+.header {
+  text-align: center;
+  padding: 20px 0 10px;
+}
+.logo {
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  text-shadow: 3px 3px 0 var(--accent2);
+}
+.subtitle {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--accent1);
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+
+/* ── Slot Machine ── */
+.slot-wrapper {
+  position: relative;
+  height: var(--slot-h);
+  background: var(--ink);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 10px 0;
+  box-shadow: var(--shadow), inset 0 0 0 2px rgba(255,255,255,0.08);
+}
+.slot-track {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  will-change: transform;
+  transition: transform 0.05s linear;
+}
+.slot-item {
+  flex: 0 0 auto;
+  width: 100px;
+  height: var(--slot-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.slot-item svg,
+.slot-item img {
+  width: 64px;
+  height: 64px;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.35));
+}
+
+.slot-overlay {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 60px;
+  pointer-events: none;
+  z-index: 2;
+}
+.slot-overlay.left  { left: 0;  background: linear-gradient(to right, var(--ink), transparent); }
+.slot-overlay.right { right: 0; background: linear-gradient(to left,  var(--ink), transparent); }
+
+/* Slot highlight border when stopped */
+.slot-wrapper.stopped {
+  box-shadow: var(--shadow), 0 0 0 3px var(--accent2);
+}
+
+/* ── Stage ── */
+.stage {
+  position: relative;
+  height: var(--stage-h);
+  background: var(--bg2);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 6px 0;
+  border: 2px dashed rgba(26,18,8,0.12);
+  flex-shrink: 0;
+}
+
+.plate {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 280px;
+  height: 20px;
+  background: var(--ink);
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(26,18,8,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.plate-label {
+  font-family: var(--font-ui);
+  font-size: 9px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.layers-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ── Layer Items (DOM-based) ── */
+.layer-item {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  will-change: transform, top;
+}
+.layer-item svg {
+  display: block;
+  width: 220px;
+  height: auto;
+  filter: drop-shadow(0 6px 12px rgba(26,18,8,0.22));
+}
+.layer-item .l-label {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  background: rgba(255,255,255,0.88);
+  border-radius: 8px;
+  padding: 1px 7px;
+  margin-top: 3px;
+  display: inline-block;
+  letter-spacing: 0.04em;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+/* Sauce stream */
+.sauce-stream {
+  position: absolute;
+  width: 6px;
+  border-radius: 3px;
+  pointer-events: none;
+  transform-origin: top center;
+  animation: sauceDrop 0.55s cubic-bezier(0.3,0,0.7,1) forwards;
+}
+@keyframes sauceDrop {
+  0%   { height: 0; opacity: 1; }
+  80%  { height: var(--stream-h); opacity: 1; }
+  100% { height: var(--stream-h); opacity: 0.7; }
+}
+
+/* Fall animation */
+@keyframes fall {
+  0%   { top: -80px; opacity: 0; }
+  60%  { top: var(--final-top); opacity: 1; transform: translateX(var(--offset)) scaleY(1.05); }
+  75%  { top: calc(var(--final-top) - 12px); transform: translateX(var(--offset)) scaleY(0.92); }
+  88%  { top: var(--final-top); transform: translateX(var(--offset)) scaleY(1.03); }
+  100% { top: var(--final-top); transform: translateX(var(--offset)) scaleY(1); opacity: 1; }
+}
+
+/* Sauce drip */
+@keyframes drip {
+  0%   { top: -20px; opacity: 0; }
+  20%  { opacity: 1; }
+  100% { top: var(--final-top); opacity: 0.9; }
+}
+
+/* ── Controls ── */
+.controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.step-indicator {
+  text-align: center;
+}
+.step-indicator span {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  opacity: 0.7;
+}
+.step-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 6px;
+}
+.dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(26,18,8,0.15);
+  transition: background 0.3s, transform 0.3s;
+}
+.dot.active {
+  background: var(--accent1);
+  transform: scale(1.3);
+}
+.dot.done {
+  background: var(--ink);
+}
+
+/* ── Buttons ── */
+.add-btn {
+  width: 100%;
+  max-width: 340px;
+  height: 64px;
+  border: none;
+  background: var(--ink);
+  color: #fff;
+  border-radius: 20px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 6px 0 rgba(26,18,8,0.3), var(--shadow);
+  transition: transform 0.1s, box-shadow 0.1s;
+  position: relative;
+  overflow: hidden;
+}
+.add-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+.add-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 rgba(26,18,8,0.3);
+}
+.add-btn.picking {
+  background: var(--accent1);
+  animation: pulse 0.5s ease infinite alternate;
+}
+@keyframes pulse {
+  from { transform: scale(1); }
+  to   { transform: scale(1.02); }
+}
+.btn-icon { font-size: 24px; }
+.btn-text { font-size: 20px; }
+
+.reset-btn {
+  background: transparent;
+  border: 2px solid rgba(26,18,8,0.2);
+  color: rgba(26,18,8,0.5);
+  border-radius: 12px;
+  padding: 10px 24px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.reset-btn:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+/* ── Result Overlay ── */
+.result-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26,18,8,0.75);
+  backdrop-filter: blur(6px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.4s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.result-card {
+  background: var(--bg);
+  border-radius: 28px;
+  padding: 36px 28px;
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes popIn {
+  from { transform: scale(0.7) translateY(40px); opacity: 0; }
+  to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.result-emoji { font-size: 56px; margin-bottom: 12px; }
+
+.result-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  color: var(--ink);
+  margin-bottom: 6px;
+  line-height: 1.2;
+}
+.result-subtitle {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: rgba(26,18,8,0.5);
+  font-weight: 700;
+  margin-bottom: 16px;
+  letter-spacing: 0.05em;
+}
+.result-ingredients {
+  background: var(--bg2);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.8;
+  text-align: left;
+}
+
+.result-btn {
+  width: 100%;
+  padding: 16px;
+  background: var(--accent1);
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #b83515;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.result-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #b83515;
+}
+
+/* ── Sauce particles ── */
+.sauce-dot {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: sauceFly 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+@keyframes sauceFly {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.3) translate(var(--dx), var(--dy)); }
+}
+
+/* ── Completion shake ── */
+@keyframes completionShake {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(-2deg); }
+  30% { transform: rotate(2deg); }
+  45% { transform: rotate(-1.5deg); }
+  60% { transform: rotate(1.5deg); }
+  75% { transform: rotate(-0.5deg); }
+  90% { transform: rotate(0.5deg); }
+}
+.stage.shaking {
+  animation: completionShake 0.6s ease;
+}
+
+/* ── Responsive ── */
+@media (min-height: 800px) {
+  :root { --stage-h: 380px; }
+}
+@media (max-height: 650px) {
+  :root { --stage-h: 280px; --slot-h: 76px; }
+  .logo { font-size: 22px; }
+}
